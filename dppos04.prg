@@ -240,6 +240,7 @@ PROCE MAIN(lConfig,cTipDocPar,lCxC)
    oPos:lCxC        :=lCxC // Cuenta Por Cobrar
    oPos:cCxC        :=cCxC
    oPos:aDocSave    :={} // utilizado para conocer los documentos creados en DPPOSSAVE 18/11/2022
+   oPos:aDescue     :={}
 
    IF ValType(cTipDocPar)="C"
       oPos:cTipFav    :=cTipDocPar
@@ -1300,6 +1301,11 @@ FUNCTION VALCODIGO(lPidPrec)
   /*
   // Validar no Utilizar el codigo de Barra del Producto
   */
+  
+  IF LEFT(oPos:cCodInv,1)="-" .AND. ISALLDIGIT(ALLTRIM(SUBS(oPos:cCodInv,2,2)))
+     oPos:SETDESCUE()
+     RETURN .T.
+  ENDIF
 
   cCod   :=SQLGET("DPEQUIV"         ,"EQUI_CODIG","EQUI_BARRA"+GetWhere("=",oPos:cCodInv))
   cBar   :=SQLGET("DPINVCAPAPRECIOS","CAP_CODBAR","CAP_CODIGO"+GetWhere("=",cCod))
@@ -2788,4 +2794,38 @@ FUNCTION VALRIFSENIAT()
    ENDIF
 
 RETURN .F.
+/*
+// Asignación de Descuento
+*/
+FUNCTION SETDESCUE()
+  LOCAL nPorcen:=VAL(SUBS(oPos:cCodInv,2,2))
+  LOCAL I
+  LOCAL nMonto :=PORCEN(oPos:nBruto,nPorcen)
+  LOCAL nPrecio:=0
+
+  oPos:nCantid:=0
+  oPos:nPrecio:=0
+  oPos:cMsgInv:="%Dcto: "+ALLTRIM(oPos:cCodInv)+" Base:"+ALLTRIM(FDP(oPos:nBruto,"99,999,999,999,999.99"))+" Monto:"+ALLTRIM(FDP(nMonto,"99,999,999,999,999.99"))
+
+  oPos:SetMsgInv(oPos:cMsgInv)
+  oPos:oBrwItem:DrawLine(.T.)
+
+  oPos:oBrwItem:aArrayData[oPos:oBrwItem:nArrayAt,1]:=oPos:cMsgInv
+  oPos:oBrwItem:aArrayData[oPos:oBrwItem:nArrayAt,2]:=nPrecio 
+  oPos:oBrwItem:DrawLine(.T.)
+ 
+  FOR I=1 TO LEN(oPos:oBrwItem:aArrayData)
+    oPos:oBrwItem:aArrayData[I,02]:=oPos:oBrwItem:aArrayData[I,02]-PORCEN(oPos:oBrwItem:aArrayData[I,02],nPorcen)
+  NEXT I
+
+  oPos:oBrwItem:Refresh(.F.)
+  oPos:oBrwItem:GoBottom(.T.)
+  oPos:oBrwItem:nArrayAt:=LEN(oPos:oBrwItem:aArrayData)
+
+  oPos:CALCULAR()
+  oPos:ISFINITEM(oPos:oPrecio)
+
+//  DPFOCUS(oPos:oCodInv)
+  
+RETURN .T.
 //

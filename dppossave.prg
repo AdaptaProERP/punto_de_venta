@@ -37,8 +37,7 @@ PROCE MAIN(lPrint,oPos)
 
   // 18-06-2008 Marlon Ramos 
   // 18-07-2022 JN oPos:lPagos 
-
-//? oPos:lPagos,"oPos:lPagos"
+  //? oPos:lPagos,"oPos:lPagos"
 
   IF oPos:nNeto>0 .AND. oPos:lPagos .AND. oPos:nEfectivoUs+oPos:nEfectivo+oPos:nCesta+oPos:nCheque+oPos:nCredito+oPos:nDebito+oPos:nTarCT=0
      oPos:SetMsgErr("Seleccione una forma de Pago por Favor")
@@ -420,16 +419,37 @@ RETURN .T.
 */
 FUNCTION SAVEDOC(cTipDoc,lVenta)
 //LOCAL oTable
-  LOCAL cWhere,oMovi,I,nItem:=0,nCosto:=0,nInvAct:=IIF(lVenta,-1,1),nCant:=0,bCant
+  LOCAL cWhere,oMovi,I,nItem:=0,nCosto:=0,nInvAct:=IIF(lVenta,-1,1),nCant:=0,bCant,nAt
   LOCAL aData:={},aTallas:={}
   LOCAL cNumero:="",nLen,nDev:=0,U
   LOCAL cCodCli:=oPos:cCodCli
+  LOCAL aDescto:={},cCodInv,cDescCO:="",aLine:={} // 19/12/2024
 
   //LOCAL cHoraTrans:=TIME()      //Guardar la misma hora en dpdocli y dpmovinv (necesario para no imprimir tickets errados)
   //LOCAL dFechTrans:=oDp:dFecha  //Guardar la misma fecha en dpdocli y dpmovinv "es posible que se imprima a las 11:59:59 pm y quedarian en fechas diferentes" (necesario para no imprimir tickets errados)
   
-  IF lVenta
+  // ViewArray(oPos:oBrwItem:aArrayData)
 
+  FOR I=1 TO LEN(oPos:oBrwItem:aArrayData)
+
+     cCodInv:=oPos:oBrwItem:aArrayData[I,1]
+
+     IF LEFT(cCodInv,1)="-"
+        aLine  :=_VECTOR(cCodInv," ")
+
+//ViewArray(aLine)
+        nAt    :=AT(" ",cCodInv)
+        cCodInv:=ALLTRIM(LEFT(cCodInv,nAt-1))
+        cDescCO:=cDescCO+IF(Empty(cDescCO),"",",")+STRTRAN(cCodInv,"-","")+"%"+aLine[8]
+        cDescCO:=STRTRAN(cDescCO,"Monto:","=")
+        // ? nAt,cCodInv,"<-cCodInv",cDescCO,"DESCUENTO CONCATENADO"
+        AADD(aDescto,ACLONE(oPos:oBrwItem:aArrayData[I]))
+        oPos:oBrwItem:aArrayData[I,6]:=0
+     ENDIF
+
+  NEXT I
+
+  IF lVenta
     AEVAL(oPos:oBrwItem:aArrayData,{|a,n| IIF(a[2]>0, AADD(aData,a) , NIL)  })
     nDev:=1
   ELSE
@@ -439,6 +459,9 @@ FUNCTION SAVEDOC(cTipDoc,lVenta)
     nDev:=-1
 
   ENDIF
+
+  // ? cDescCO,"cDescCO"
+
   // CRYSTIAN UVIEDO (ADAPTAPRO)   para que al libro de ventas lleve las devoluciones -.
   //SQLUPDATE("DPDOCCLI","DOC_CXC",1,"DOC_CXC=0 AND DOC_TIPDOC='TIK'")
   //SQLUPDATE("DPDOCCLI","DOC_CXC",-1,"DOC_CXC=0 AND DOC_TIPDOC='DEV'")
@@ -507,7 +530,7 @@ FUNCTION SAVEDOC(cTipDoc,lVenta)
   oTable:Replace("DOC_VALCAM",oPos:nValCam  )
   oTable:Replace("DOC_IMPRES",.F.           ) // FISCALMENTE NO IMPRESO
   oTable:Replace("DOC_MTODIV",ROUND(oPos:nNeto/oPos:nValCam,2))
- 
+  oTable:Replace("DOC_DESCCO",cDescCO)  // 19/12/2024
 
   // 30-07-2008 Marlon Ramos Guardar la misma fecha y hora en dpdocli y dpmovinv (necesario para no imprimir tickets errados)
     //oTable:Replace("DOC_FECHA" ,oDp:dFecha    )
@@ -516,6 +539,7 @@ FUNCTION SAVEDOC(cTipDoc,lVenta)
     oTable:Replace("DOC_FECHA" ,dFechTrans)
     oTable:Replace("DOC_FCHVEN",dFechTrans)
     oTable:Replace("DOC_HORA"  ,cHoraTrans)
+ 
   // Fin 30-07-2008 Marlon Ramos
 
   oTable:Replace("DOC_CXC",nDev             )
@@ -582,8 +606,7 @@ FUNCTION SAVEDOC(cTipDoc,lVenta)
 
   // aData:=ACLONE(oPos:oBrwItem:aArrayData)
   // Grabar el Cuerpo de la venta
-
-//ViewArray(aData)
+  // ViewArray(aData)
 
   FOR I=1 TO LEN(aData)
 

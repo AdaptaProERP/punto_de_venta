@@ -10,6 +10,7 @@
 
 PROCE MAIN(cIp,lAuto)
   LOCAL oData
+  LOCAL oDb:=OpenOdbc(oDp:cDsnData)
 
   DEFAULT cIp:=oDp:cIpLocal,;
           lAuto:=.F.
@@ -62,7 +63,10 @@ PROCE MAIN(cIp,lAuto)
   oDp:cMoneda   :=LEFT(oDp:cMoneda   ,3)
 
   EJECUTAR("DPIVATIP_CREA") // Crea Tipo de IVA Pago Electrónico
-//EJECUTAR("DPCAMPOSADD","DPCAJAINST" ,"ICJ_TRAMAI","C",3,0,"Trama Impresora Fiscal TEHFACTORY")
+
+  IF !EJECUTAR("ISFIELDMYSQL",oDb,"DPCAJAINST","ICJ_TRAMA",.T.) 
+     EJECUTAR("ADDFIELDS_2208",.T.)
+  ENDIF
 
   IF !lAuto
     EJECUTAR("DPSERIEFISCALLOAD") // 20/11/2022
